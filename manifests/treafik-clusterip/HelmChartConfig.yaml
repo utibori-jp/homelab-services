@@ -1,0 +1,18 @@
+# Overrides the values of the k3s-bundled Traefik HelmChart (kube-system/traefik).
+# k3s reconciles its built-in Traefik via a HelmChart resource; HelmChartConfig
+# of the same name+namespace is merged on top as an extra values file.
+#
+# Goal: stop Traefik from requesting a LoadBalancer service. ServiceLB is
+# disabled cluster-wide, so a LoadBalancer service would just sit Pending and
+# block its own deletion behind a finalizer that nothing will satisfy.
+# All external access is handled by Tailscale operator Ingresses, which talk
+# to Traefik via ClusterIP.
+apiVersions: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    service:
+      type: ClusterIP

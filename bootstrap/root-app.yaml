@@ -1,0 +1,28 @@
+# Root of the App-of-Apps tree. Apply this once by hand:
+#   kubectl apply -f bootstrap/root-app.yaml
+# After that, Argo CD picks up everything under apps/ and
+# subsequent changes flow through git only.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  # Without this finalizer, deleting the root Application would orphan all
+  # the child Applications instead of cascading the delete.
+  finlalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/utibori-jp/homelab-services.git
+    targetRevision: main
+    path: apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,29 @@
+# Owns the HelmChartConfig that flips k3s' bundled traefik to ClusterIP.
+# The actual override lives in manifests/traefik-clusterip/.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik-config
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/utibori-jp/homelab-services.git
+    targetRevision: main
+    path: manifests/traefik-clusterip
+  destination:
+    server: https://kubernetes.default.svc
+    # The HelmchartConfig itself lives in kube-system to match the
+    # HelmChart it override. Argo CD will not create kube-system
+    # (it already exists), so CreateNamespace here is hermless.
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # HelmChartConfig is ar CRD owned by k3s' helm-controller. Server-side
+      # apply avoid client-side merge quirks when k3s mutates the resource.
+      - ServerSideApply=true
