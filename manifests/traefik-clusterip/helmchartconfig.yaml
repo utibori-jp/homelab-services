@@ -7,7 +7,7 @@
 # block its own deletion behind a finalizer that nothing will satisfy.
 # All external access is handled by Tailscale operator Ingresses, which talk
 # to Traefik via ClusterIP.
-apiVersions: helm.cattle.io/v1
+apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
 metadata:
   name: traefik

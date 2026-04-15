@@ -9,7 +9,7 @@ metadata:
   namespace: argocd
   # Without this finalizer, deleting the root Application would orphan all
   # the child Applications instead of cascading the delete.
-  finlalizers:
+  finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default

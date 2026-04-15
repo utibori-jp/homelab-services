@@ -1,7 +1,7 @@
 # Lists every Argo CD Applications that the root App-of=Apps should manage.
 # Adding a new app means: drop a new <name>.yaml in this directory, then add
 # its filename to resources below. Argo CD picks up the change on next sync.
-apiVersion: kustomization.config.k8s.io/v1beta1
+apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - traefik-config.yaml
