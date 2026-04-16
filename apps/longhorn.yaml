@@ -1,0 +1,67 @@
+# Longhorn distributed block storage. Pinned to 1.11.1 because 1.11.0
+# shipped a validating-webhook regression that bricks installs.
+#
+# Layout choices:
+# - Lives in longhorn-system (chart's strong recommendation; some RBAC
+#   expects this exact namespace name).
+# - Replica count 2. The cluster has 3 nodes, no node exclusion, so any
+#   node can host data.
+# - StorageClass `longhorn` becomes the cluster default. local-path stays
+#   around but loses its default flag; PVCs that want it must ask by name.
+# - UI is ClusterIP. External access is via the Tailscale Ingress later.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.longhorn.io
+    chart: longhorn
+    targetRevision: 1.11.1
+    helm:
+      values: |
+        persistence:
+          defaultClass: true
+          defaultClassReplicaCount: 2
+          reclaimPolicy: Delete
+        defaultSettings:
+          defaultReplicaCount: 2
+          # Required acknowledgement before `helm uninstall` will run the
+          # cleanup job. Without this, a future uninstall hangs waiting
+          # for confirmation that never comes via Argo CD.
+          deletingConfirmationFlag: true
+          # Don't phone home for upgrade checks.
+          upgradeChecker: false
+        preUpgradeChecker:
+          jobEnabled: false
+          upgradeVersionCheck: false
+        service:
+          ui:
+            type: ClusterIP
+          manager:
+            type: ClusterIP
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Longhorn ships large CRDs that exceed the kubectl client-side
+      # apply annotation size limit. Server-side apply avoids that.
+      - ServerSideApply=true
+      # Longhorn's pre-upgrade hook is incompatible with Argo CD's sync
+      # ordering and isn't needed for fresh installs.
+      - Replace=false
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
