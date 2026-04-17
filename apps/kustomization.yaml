@@ -6,3 +6,4 @@ kind: Kustomization
 resources:
   - traefik-config.yaml
   - longhorn.yaml
+  - vikunja.yaml
