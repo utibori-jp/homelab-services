@@ -1,0 +1,65 @@
+# PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vikunja-db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.postgres.persistence.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.persistence.size }}
+
+--- 
+# app
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vikunja-db
+spec:
+  serviceName: vikunja-db
+  replicas: {{ .Values.postgres.replicas }}
+  selector:
+    matchLabels:
+      app: vikunja-db
+  template:
+    metadata:
+      labels:
+        app: vikunja-db
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          env:
+            - name: POSTGRES_USER
+              value: vikunja
+            - name: POSTGRES_DB
+              value: vikunja
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-secrets
+                  key: POSTGRES_PASSWORD
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres-data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vikunja-db-pvc
+
+---
+# service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vikunja-db
+spec:
+  selector:
+    app: vikunja-db
+  ports:
+    - port: 5432

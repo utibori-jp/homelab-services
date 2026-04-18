@@ -8,20 +8,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://ghcr.io/go-vikunja/helm-chart
-    chart: vikunja
-    targetRevision: 1.0.0
-    helm:
-      valuesObject:
-        vikunja:
-          ingress:
-            main:
-              enabled: false
-          persistence:
-            data:
-              enabled: true
-              accessMode: ReadWriteOnce
-              size: 10Gi
+    repoURL: https://github.com/utibori-jp/homelab-services.git
+    path: charts/vikunja
+    targetRevision: main
   destination:
     server: https://kubernetes.default.svc
     namespace: vikunja

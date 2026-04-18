@@ -1,0 +1,78 @@
+# PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vikunja-files-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.vikunja.persistence.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.vikunja.persistence.size }}
+
+# Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vikunja
+spec:
+  replicas: {{ .Values.vikunja.replicas }}
+  selector:
+    matchLabels:
+      app: vikunja
+  template:
+    metadata:
+      labels:
+        app: vikunja
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: vikunja
+          image: {{ .Values.vikunja.image }}
+          env:
+            - name: VIKUNJA_DATABASE_TYPE
+              value: "postgres"
+            - name: VIKUNJA_DATABASE_HOST
+              value: "vikunja-db"
+            - name: VIKUNJA_DATABASE_USER
+              value: "vikunja"
+            - name: VIKUNJA_DATABASE_DATABASE
+              value: "vikunja"
+            - name: VIKUNJA_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-secrets
+                  key: POSTGRES_PASSWORD
+            - name: VIKUNJA_SERVICE_JWTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vikunja-secrets
+                  key: VIKUNJA_SERVICE_JWTSECRET
+            - name: VIKUNJA_SERVICE_PUBLICURL
+              value: {{ .Values.vikunja.publicUrl | quote }}
+          volumeMounts:
+            - name: files
+              mountPath: /app/vikunja/files
+          ports:
+            - containerPort: {{ .Values.vikunja.service.targetPort }}
+      volumes:
+        - name: files
+          persistentVolumeClaim:
+            claimName: vikunja-files-pvc
+
+# Service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vikunja
+spec:
+  type: ClusterIP
+  selector:
+    app: vikunja
+  ports:
+    - port: {{ .Values.vikunja.service.port }}
+      targetPort: {{ .Values.vikunja.service.targetPort }}
