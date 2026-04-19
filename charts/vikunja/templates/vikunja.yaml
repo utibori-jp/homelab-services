@@ -28,7 +28,7 @@ spec:
         app: vikunja
     spec:
       securityContext:
-        fsGroup: 1000
+        fsGroup: 1000  # vikunja runs as UID 1000; PVC needs matching group ownership
       containers:
         - name: vikunja
           image: {{ .Values.vikunja.image }}
@@ -44,7 +44,7 @@ spec:
             - name: VIKUNJA_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: vikunja-secrets
+                  name: vikunja-secrets  # pre-created externally, not managed by this chart
                   key: POSTGRES_PASSWORD
             - name: VIKUNJA_SERVICE_JWTSECRET
               valueFrom:

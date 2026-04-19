@@ -1,3 +1,4 @@
+# In-repo chart at charts/vikunja (not a registry chart).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

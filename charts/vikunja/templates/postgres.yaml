@@ -11,8 +11,8 @@ spec:
     requests:
       storage: {{ .Values.postgres.persistence.size }}
 
---- 
-# app
+---
+# StatefulSet
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -46,7 +46,7 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-              subPath: postgres-data
+              subPath: postgres-data  # postgres refuses to init if mountPath root is non-empty; subPath gives it an empty subdir
       volumes:
         - name: data
           persistentVolumeClaim:
