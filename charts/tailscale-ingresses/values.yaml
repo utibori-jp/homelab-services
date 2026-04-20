@@ -4,7 +4,7 @@ ingresses:
     namespace: argocd
     service:
       name: argo-cd-argocd-server
-      port: 443
+      port: 80
   longhorn:
     hostname: longhorn
     namespace: longhorn-system
