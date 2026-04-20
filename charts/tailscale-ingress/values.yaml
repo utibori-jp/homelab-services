@@ -1,0 +1,19 @@
+ingresses:
+  argocd:
+    hostname: argocd
+    namespace: argocd
+    service:
+      name: argo-cd-argocd-server
+      port: 443
+  longhorn:
+    hostname: longhorn
+    namespace: longhorn-system
+    service:
+      name: longhorn-frontend
+      port: 80
+  vikunja:
+    hostname: vikunja
+    namespace: vikunja
+    service:
+      name: vikunja
+      port: 80

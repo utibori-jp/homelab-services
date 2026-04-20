@@ -1,0 +1,4 @@
+apiVersion: v2
+name: tailscale-ingresses
+description: Tailscale Ingress resources for homelab services
+version: 0.1.0

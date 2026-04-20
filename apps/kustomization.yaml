@@ -7,3 +7,4 @@ resources:
   - traefik-config.yaml
   - longhorn.yaml
   - vikunja.yaml
+  - ingress.yaml
