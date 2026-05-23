@@ -1,0 +1,68 @@
+# PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: atoikura-db-pvc
+  namespace: atoikura
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.postgres.persistence.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.persistence.size }}
+
+---
+# StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: atoikura-db
+  namespace: atoikura
+spec:
+  serviceName: atoikura-db
+  replicas: {{ .Values.postgres.replicas }}
+  selector:
+    matchLabels:
+      app: atoikura-db
+  template:
+    metadata:
+      labels:
+        app: atoikura-db
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          env:
+            - name: POSTGRES_USER
+              value: atoikura
+            - name: POSTGRES_DB
+              value: atoikura
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: atoikura-secrets
+                  key: POSTGRES_PASSWORD
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/18/docker
+              subPath: postgres-data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: atoikura-db-pvc
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: atoikura-db
+  namespace: atoikura
+spec:
+  selector:
+    app: atoikura-db
+  ports:
+    - port: 5432

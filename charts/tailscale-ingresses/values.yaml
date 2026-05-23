@@ -17,3 +17,15 @@ ingresses:
     service:
       name: vikunja
       port: 80
+  atoikura:
+    hostname: atoikura
+    namespace: atoikura
+    service:
+      name: atoikura
+      port: 80
+    backend:
+      hostname: atoikura-api
+      service:
+        name: atoikura-api
+        port: 8080
+      

@@ -1,0 +1,45 @@
+# Frontend
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: atoikura-tailscale
+  namespace: {{ .Values.ingresses.atoikura.namespace }}
+spec:
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - {{ .Values.ingresses.atoikura.hostname }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.ingresses.atoikura.service.name }}
+                port:
+                  number: {{ .Values.ingresses.atoikura.service.port }}
+
+
+---
+# Backend
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: atoikura-api-tailscale
+  namespace: {{ .Values.ingresses.atoikura.namespace }}
+spec:
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - {{ .Values.ingresses.atoikura.backend.hostname }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.ingresses.atoikura.backend.service.name }}
+                port:
+                  number: {{ .Values.ingresses.atoikura.backend.service.port }}

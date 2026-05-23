@@ -8,3 +8,4 @@ resources:
   - longhorn.yaml
   - vikunja.yaml
   - ingress.yaml
+  - atoikura.yaml
