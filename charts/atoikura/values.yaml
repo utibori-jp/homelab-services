@@ -1,6 +1,7 @@
 backend:
   image: ghcr.io/utibori-jp/atoikura-backend:latest
   replicas: 1
+  corsAllowedOrigin: "https://atoikura.tail078c12.ts.net"
   service:
     port: 8080
     targetPort: 8080

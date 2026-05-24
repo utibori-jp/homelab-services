@@ -26,6 +26,8 @@ spec:
                 secretKeyRef:
                   name: atoikura-secrets
                   key: DATABASE_URL
+            - name: CORS_ALLOWED_ORIGIN
+              value: {{ .Values.backend.corsAllowedOrigin | quote }}
           ports:
             - containerPort: {{ .Values.backend.service.targetPort }}
           resources:
