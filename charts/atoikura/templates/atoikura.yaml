@@ -28,6 +28,11 @@ spec:
                   key: DATABASE_URL
             - name: CORS_ALLOWED_ORIGIN
               value: {{ .Values.backend.corsAllowedOrigin | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: atoikura-secrets
+                  key: JWT_SECRET
           ports:
             - containerPort: {{ .Values.backend.service.targetPort }}
           resources:
