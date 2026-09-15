@@ -9,3 +9,4 @@ resources:
   - vikunja.yaml
   - ingress.yaml
   - atoikura.yaml
+  - sealed-secrets.yaml
