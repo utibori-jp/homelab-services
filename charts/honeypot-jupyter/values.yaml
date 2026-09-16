@@ -40,5 +40,11 @@ b2:
   region: us-west-004
   bronzeUri: s3://cowrie-log/cowrie/honeypod1/year=*/month=*/day=*/*.gz
 
+# Holds JUPYTER_TOKEN. Sealed separately, and the deployment treats it as
+# optional so a missing secret degrades to a random token rather than a
+# CreateContainerConfigError.
+auth:
+  secretName: honeypot-jupyter-auth
+
 service:
   port: 8888

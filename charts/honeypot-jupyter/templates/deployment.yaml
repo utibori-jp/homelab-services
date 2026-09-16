@@ -34,6 +34,15 @@ spec:
             - secretRef:
                 name: {{ .Values.b2.secretName }}
           env:
+            # Fixed login token, so the URL stops changing on every restart.
+            # Optional: without the secret the server falls back to the random
+            # token it prints to the log.
+            - name: JUPYTER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.secretName }}
+                  key: JUPYTER_TOKEN
+                  optional: true
             - name: HONEYPOT_DATA_DIR
               value: /home/jovyan/data
             - name: HONEYPOT_B2_ENDPOINT
