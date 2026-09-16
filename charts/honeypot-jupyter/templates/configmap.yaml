@@ -15,10 +15,15 @@ data:
   # docker-stacks sources every .sh in before-notebook.d before starting the
   # server. jovyan owns /opt/conda, so this needs no root.
   install-extras.sh: |
-    set -eu
+    # Sourced, not executed, so no set -e or set -u here. Leaving shell
+    # options on leaks them into start.sh, which reads unset variables of
+    # its own and dies under set -u.
     echo "installing extra packages"
-    pip install --no-cache-dir --quiet -r /opt/honeypot/requirements.txt
-    echo "extra packages ready"
+    if pip install --no-cache-dir --quiet -r /opt/honeypot/requirements.txt; then
+      echo "extra packages ready"
+    else
+      echo "extra package install FAILED, notebook will be missing duckdb/lifelines" >&2
+    fi
 
   honeypot_db.py: |
     """DuckDB connection wired to the Cowrie bronze logs in Backblaze B2.
