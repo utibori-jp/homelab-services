@@ -1,0 +1,6 @@
+apiVersion: v2
+name: honeypot-jupyter
+description: Jupyter and DuckDB exploration environment for the Cowrie honeypot logs
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

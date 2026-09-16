@@ -28,4 +28,10 @@ ingresses:
       service:
         name: atoikura-api
         port: 8080
-      
+
+  jupyter:
+    hostname: jupyter
+    namespace: honeypot-analytics
+    service:
+      name: honeypot-jupyter
+      port: 8888

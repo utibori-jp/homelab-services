@@ -1,0 +1,29 @@
+# Notebooks live apart from data on purpose. The data claim is ReadWriteMany
+# so the future Argo Workflows jobs can mount it alongside a running Jupyter,
+# and access modes cannot be changed after a claim is created.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: honeypot-notebooks
+  namespace: honeypot-analytics
+spec:
+  accessModes:
+    - {{ .Values.persistence.notebooks.accessMode }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.notebooks.size }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: honeypot-data
+  namespace: honeypot-analytics
+spec:
+  accessModes:
+    - {{ .Values.persistence.data.accessMode }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.data.size }}

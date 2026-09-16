@@ -1,0 +1,44 @@
+# Date tagged build from jupyter/docker-stacks. Ships numpy, pandas,
+# scikit-learn and matplotlib, so only duckdb and lifelines are added below.
+image: quay.io/jupyter/scipy-notebook:2026-09-07
+
+replicas: 1
+
+# Installed by the before-notebook.d hook on every container start. Two small
+# wheels, so this costs tens of seconds. Move them into a built image once the
+# script set stops changing.
+extraPackages:
+  - duckdb==1.5.5
+  - lifelines==0.30.3
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 1Gi
+  limits:
+    memory: 3Gi
+
+persistence:
+  storageClass: longhorn
+  # Notebooks only. Small, and the one thing here that cannot be regenerated.
+  notebooks:
+    size: 1Gi
+    accessMode: ReadWriteOnce
+  # Silver and gold parquet plus the working duckdb file. ReadWriteMany so the
+  # Argo Workflows jobs can write while Jupyter stays up. Every GB costs 2GB of
+  # real disk at the current Longhorn replica count, and the nodes have around
+  # 12GB free each, so this stays small. Longhorn allows expansion later.
+  data:
+    size: 2Gi
+    accessMode: ReadWriteMany
+
+# Backblaze B2, read only key scoped to the cowrie/ prefix. The bucket holds
+# the bronze layer and is read straight from there, never copied down.
+b2:
+  secretName: b2-credentials
+  endpoint: s3.us-west-004.backblazeb2.com
+  region: us-west-004
+  bronzeUri: s3://cowrie-log/cowrie/honeypod1/year=*/month=*/day=*/*.gz
+
+service:
+  port: 8888

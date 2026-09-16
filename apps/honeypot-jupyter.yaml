@@ -1,0 +1,25 @@
+# Jupyter and DuckDB, for working out the analysis by hand before any of it
+# becomes an Argo Workflows template. The namespace and the B2 credentials
+# come from the honeypot-analytics Application, so CreateNamespace is off.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: honeypot-jupyter
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/utibori-jp/homelab-services.git
+    path: charts/honeypot-jupyter
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: honeypot-analytics
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

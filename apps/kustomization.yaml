@@ -11,3 +11,4 @@ resources:
   - atoikura.yaml
   - sealed-secrets.yaml
   - honeypot-analytics.yaml
+  - honeypot-jupyter.yaml
