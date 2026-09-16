@@ -38,6 +38,10 @@ data:
     query. Cowrie emits a different field set per eventid, so the view unions
     by name and keeps going past records it cannot parse. Narrow it down and
     write the result to silver/ before iterating on it.
+
+    The B2 object each row came from lands in source_file. Cowrie already
+    emits a filename field of its own on download events, so the provenance
+    column cannot use that name.
     """
 
     import os
@@ -84,7 +88,7 @@ data:
         con.execute(
             "CREATE OR REPLACE VIEW bronze AS SELECT * FROM read_json_auto("
             + _sql_literal(os.environ["HONEYPOT_BRONZE_URI"])
-            + ", union_by_name = true, ignore_errors = true, filename = true)"
+            + ", union_by_name = true, ignore_errors = true, filename = 'source_file')"
         )
 
         return con
