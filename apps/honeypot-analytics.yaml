@@ -1,0 +1,29 @@
+# Owns the honeypot-analytics namespace and the credentials shared by
+# everything inside it. Workloads (ingest, transform, notebooks) get their
+# own Applications pointing at the same namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: honeypot-analytics
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/utibori-jp/homelab-services.git
+    path: manifests/honeypot-analytics
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: honeypot-analytics
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # The Namespace is declared in manifests/, so Argo CD does not need to
+      # conjure one. Left on as a safety net for a first sync where the
+      # Namespace has not been applied yet.
+      - CreateNamespace=true
+      - ServerSideApply=true

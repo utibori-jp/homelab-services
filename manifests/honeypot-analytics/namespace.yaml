@@ -1,0 +1,9 @@
+# The honeypot-analytics namespace is a box that several Applications share,
+# not the byproduct of one chart. It is declared here rather than left to
+# CreateNamespace so it stays under Argo CD's control: deleting this
+# Application takes the namespace with it. That is deliberate. The bronze
+# data lives in B2, so the namespace can be rebuilt from scratch.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: honeypot-analytics
