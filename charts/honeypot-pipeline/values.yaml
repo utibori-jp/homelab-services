@@ -1,0 +1,28 @@
+# Built from the analytics directory of the cowrie-honeypot repository.
+# Bump the tag here after tagging analytics-vX.Y.Z over there.
+image: ghcr.io/utibori-jp/honeypot-analytics:v0.1.1
+
+normalize:
+  # The droplet rotates a day's log at its own local midnight and the hourly
+  # rclone run ships it within the hour, which lands it well before this. The
+  # job asks for yesterday, so a late file would be picked up on the next run
+  # rather than lost.
+  schedule: "0 2 * * *"
+  timezone: UTC
+
+# Writes silver and gold. The same claim Jupyter has mounted, which is why it
+# is ReadWriteMany.
+dataPvc: honeypot-data
+
+b2:
+  secretName: b2-credentials
+  prefix: s3://cowrie-log/cowrie/honeypod1
+  endpoint: s3.us-west-004.backblazeb2.com
+  region: us-west-004
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    memory: 2Gi

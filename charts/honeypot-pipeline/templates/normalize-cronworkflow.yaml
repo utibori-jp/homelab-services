@@ -1,0 +1,63 @@
+# Bronze to silver, once a day. One step for now; clustering and survival
+# analysis become further templates in this DAG once their scripts settle.
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: honeypot-normalize
+  namespace: honeypot-analytics
+spec:
+  schedule: {{ .Values.normalize.schedule | quote }}
+  timezone: {{ .Values.normalize.timezone | quote }}
+  # A run that is still going when the next one is due means something is
+  # wrong; a second one writing the same partition would not help.
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  workflowSpec:
+    arguments:
+      parameters:
+        - name: date
+          value: ""
+    serviceAccountName: argo-workflow
+    entrypoint: normalize
+    # Longhorn hands the volume over owned by root. 1000:100 is what the
+    # image and the Jupyter pod both run as.
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 100
+      fsGroup: 100
+    volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ .Values.dataPvc }}
+    templates:
+      - name: normalize
+        container:
+          image: {{ .Values.image }}
+          # Empty means yesterday. To redo a day, or to backfill:
+          #   argo submit --from cronwf/honeypot-normalize -p date=2026-09-15
+          args: ["normalize", "--date", "{{`{{workflow.parameters.date}}`}}"]
+          envFrom:
+            - secretRef:
+                name: {{ .Values.b2.secretName }}
+          env:
+            - name: HONEYPOT_DATA_DIR
+              value: /data
+            - name: HONEYPOT_B2_PREFIX
+              value: {{ .Values.b2.prefix | quote }}
+            - name: HONEYPOT_B2_ENDPOINT
+              value: {{ .Values.b2.endpoint | quote }}
+            - name: HONEYPOT_B2_REGION
+              value: {{ .Values.b2.region | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+        retryStrategy:
+          # B2 being briefly unreachable is the failure worth retrying. A bad
+          # day's data would fail all three times and stay failed.
+          limit: "2"
+          retryPolicy: OnError
+          backoff:
+            duration: "1m"
+            factor: "2"

@@ -1,0 +1,25 @@
+# The scheduled half of honeypot-analytics. Separate from the Application that
+# owns the namespace so the pipeline can be reworked without touching the
+# credentials underneath it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: honeypot-pipeline
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/utibori-jp/homelab-services.git
+    path: charts/honeypot-pipeline
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: honeypot-analytics
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

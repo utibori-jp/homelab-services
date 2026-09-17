@@ -1,0 +1,6 @@
+apiVersion: v2
+name: honeypot-pipeline
+description: Scheduled analysis of the Cowrie honeypot logs
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
