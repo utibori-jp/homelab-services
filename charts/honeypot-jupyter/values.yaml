@@ -1,15 +1,9 @@
-# Date tagged build from jupyter/docker-stacks. Ships numpy, pandas,
-# scikit-learn and matplotlib, so only duckdb and lifelines are added below.
-image: quay.io/jupyter/scipy-notebook:2026-09-07
+# The same image the pipeline jobs run. That is the point: code worked out in
+# a notebook moves into the package and runs unchanged as a job, with no
+# second copy of the B2 wiring to keep in step.
+image: ghcr.io/utibori-jp/honeypot-analytics:v0.2.0
 
 replicas: 1
-
-# Installed by the before-notebook.d hook on every container start. Two small
-# wheels, so this costs tens of seconds. Move them into a built image once the
-# script set stops changing.
-extraPackages:
-  - duckdb==1.5.5
-  - lifelines==0.30.3
 
 resources:
   requests:
@@ -24,21 +18,27 @@ persistence:
   notebooks:
     size: 1Gi
     accessMode: ReadWriteOnce
-  # Silver and gold parquet plus the working duckdb file. ReadWriteMany so the
-  # Argo Workflows jobs can write while Jupyter stays up. Every GB costs 2GB of
+  # Silver and gold parquet plus the workbench duckdb file. ReadWriteMany so
+  # the pipeline jobs can write while Jupyter stays up. Every GB costs 2GB of
   # real disk at the current Longhorn replica count, and the nodes have around
   # 12GB free each, so this stays small. Longhorn allows expansion later.
   data:
     size: 2Gi
     accessMode: ReadWriteMany
 
+paths:
+  # Matches the mount the jobs use, so a path that works in a notebook works
+  # in a job.
+  data: /data
+  notebooks: /home/analyst/work
+
 # Backblaze B2, read only key scoped to the cowrie/ prefix. The bucket holds
 # the bronze layer and is read straight from there, never copied down.
 b2:
   secretName: b2-credentials
+  prefix: s3://cowrie-log/cowrie/honeypod1
   endpoint: s3.us-west-004.backblazeb2.com
   region: us-west-004
-  bronzeUri: s3://cowrie-log/cowrie/honeypod1/year=*/month=*/day=*/*.gz
 
 # Holds JUPYTER_TOKEN. Sealed separately, and the deployment treats it as
 # optional so a missing secret degrades to a random token rather than a

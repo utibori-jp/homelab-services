@@ -17,15 +17,36 @@ spec:
       labels:
         app: honeypot-jupyter
     spec:
-      # jovyan is uid 1000, group users is gid 100. Longhorn hands the volume
-      # over owned by root, so fsGroup is what makes it writable.
+      # The image's analyst user is uid 1000, group 100. Longhorn hands the
+      # volume over owned by root, so fsGroup is what makes it writable.
       securityContext:
         runAsUser: 1000
         runAsGroup: 100
         fsGroup: 100
+      initContainers:
+        # Stores the silver_events view in the workbench database so a SQL
+        # client that connects straight to the file can use it. Runs before
+        # the server so nothing holds the write lock at the same time.
+        - name: init-views
+          image: {{ .Values.image }}
+          args: ["init-views"]
+          env:
+            {{- include "honeypot-jupyter.env" . | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.paths.data }}
       containers:
         - name: jupyter
           image: {{ .Values.image }}
+          # The image entrypoint is the analytics CLI, so the server is
+          # spelled out here.
+          command:
+            - jupyter
+            - lab
+            - --ip=0.0.0.0
+            - --port=8888
+            - --no-browser
+            - --ServerApp.root_dir={{ .Values.paths.notebooks }}
           ports:
             - containerPort: 8888
           envFrom:
@@ -34,44 +55,27 @@ spec:
             - secretRef:
                 name: {{ .Values.b2.secretName }}
           env:
-            # Fixed login token, so the URL stops changing on every restart.
-            # Optional: without the secret the server falls back to the random
-            # token it prints to the log.
+            # jupyter_server picks this up on its own. Without the secret the
+            # server falls back to the random token it prints to the log.
             - name: JUPYTER_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.auth.secretName }}
                   key: JUPYTER_TOKEN
                   optional: true
-            - name: HONEYPOT_DATA_DIR
-              value: /home/jovyan/data
-            - name: HONEYPOT_B2_ENDPOINT
-              value: {{ .Values.b2.endpoint | quote }}
-            - name: HONEYPOT_B2_REGION
-              value: {{ .Values.b2.region | quote }}
-            - name: HONEYPOT_BRONZE_URI
-              value: {{ .Values.b2.bronzeUri | quote }}
-            - name: PYTHONPATH
-              value: /opt/honeypot
+            {{- include "honeypot-jupyter.env" . | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: notebooks
-              mountPath: /home/jovyan/work
+              mountPath: {{ .Values.paths.notebooks }}
             - name: data
-              mountPath: /home/jovyan/data
-            - name: env
-              mountPath: /opt/honeypot
-            - name: env
-              mountPath: /usr/local/bin/before-notebook.d/install-extras.sh
-              subPath: install-extras.sh
-          # pip install runs before the server binds, so the startup budget is
-          # generous. Liveness only cares that the port is still answering.
+              mountPath: {{ .Values.paths.data }}
           startupProbe:
             tcpSocket:
               port: 8888
             periodSeconds: 5
-            failureThreshold: 60
+            failureThreshold: 24
           livenessProbe:
             tcpSocket:
               port: 8888
@@ -83,6 +87,3 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: honeypot-data
-        - name: env
-          configMap:
-            name: honeypot-jupyter-env
