@@ -6,7 +6,9 @@ metadata:
   name: honeypot-normalize
   namespace: honeypot-analytics
 spec:
-  schedule: {{ .Values.normalize.schedule | quote }}
+  # A list since v4; the singular spec.schedule is gone.
+  schedules:
+    - {{ .Values.normalize.schedule | quote }}
   timezone: {{ .Values.normalize.timezone | quote }}
   # A run that is still going when the next one is due means something is
   # wrong; a second one writing the same partition would not help.
