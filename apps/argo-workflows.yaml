@@ -29,10 +29,12 @@ spec:
           # namespace, next to whatever storage and secrets they need.
           workflowNamespaces:
             - honeypot-analytics
-          # Templates shared across projects would go here. Until something
-          # actually needs one, skip the ClusterRole that comes with them.
+          # Where templates shared across projects go. Nothing uses one yet,
+          # but leaving it off makes the UI section error out, and a shared
+          # runner is exactly the setup that wants them. The extra grant is
+          # get/list/watch on this one resource.
           clusterWorkflowTemplates:
-            enabled: false
+            enabled: true
           workflowDefaults:
             spec:
               podGC:
@@ -59,7 +61,7 @@ spec:
           authModes:
             - server
           clusterWorkflowTemplates:
-            enabled: false
+            enabled: true
   destination:
     server: https://kubernetes.default.svc
     namespace: argo-workflows
