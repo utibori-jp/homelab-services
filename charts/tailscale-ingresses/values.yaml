@@ -35,3 +35,10 @@ ingresses:
     service:
       name: honeypot-jupyter
       port: 8888
+
+  workflows:
+    hostname: workflows
+    namespace: argo-workflows
+    service:
+      name: argo-workflows-server
+      port: 2746

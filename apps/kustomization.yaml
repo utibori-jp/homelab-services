@@ -10,5 +10,7 @@ resources:
   - ingress.yaml
   - atoikura.yaml
   - sealed-secrets.yaml
+  - argo-workflows.yaml
   - honeypot-analytics.yaml
   - honeypot-jupyter.yaml
+  - honeypot-pipeline.yaml

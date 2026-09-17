@@ -1,0 +1,72 @@
+# Shared job runner for the cluster. Nothing about it is tied to one project:
+# it gets its own namespace and its own lifecycle, and the projects it runs
+# jobs for are a list it is pointed at. honeypot-analytics happens to be the
+# first one.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-workflows
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-workflows
+    targetRevision: "2.0.6"
+    helm:
+      values: |
+        # singleNamespace would tie the controller to whichever namespace it
+        # was installed into, which is the opposite of what this is for. With
+        # it off, the controller stays here and workflowNamespaces below names
+        # the projects it serves.
+        singleNamespace: false
+
+        controller:
+          # One line per project that wants scheduled jobs. Each gets a
+          # service account and a Role, and its workflows run in its own
+          # namespace, next to whatever storage and secrets they need.
+          workflowNamespaces:
+            - honeypot-analytics
+          # Templates shared across projects would go here. Until something
+          # actually needs one, skip the ClusterRole that comes with them.
+          clusterWorkflowTemplates:
+            enabled: false
+          workflowDefaults:
+            spec:
+              podGC:
+                # Successful pods go away, failed ones stay for as long as it
+                # takes to read their logs. Revisit once Loki is collecting,
+                # at which point the logs outlive the pod either way.
+                strategy: OnPodSuccess
+              ttlStrategy:
+                # The Workflow objects themselves, not the pods.
+                secondsAfterCompletion: 604800
+
+        workflow:
+          serviceAccount:
+            # Created in each namespace listed above. Job pods run as this.
+            create: true
+            name: argo-workflow
+          rbac:
+            create: true
+
+        server:
+          # No login. The only route in is a Tailscale Ingress, the same
+          # posture as the Argo CD server next door. The chart already
+          # defaults to plain HTTP, which is what Tailscale terminates onto.
+          authModes:
+            - server
+          clusterWorkflowTemplates:
+            enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-workflows
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
