@@ -1,6 +1,6 @@
 # Built from the analytics directory of the cowrie-honeypot repository.
 # Bump the tag here after tagging analytics-vX.Y.Z over there.
-image: ghcr.io/utibori-jp/honeypot-analytics:v0.1.1
+image: ghcr.io/utibori-jp/honeypot-analytics:v0.2.0
 
 normalize:
   # The droplet rotates a day's log at its own local midnight and the hourly
