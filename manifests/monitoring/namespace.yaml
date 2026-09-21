@@ -1,0 +1,13 @@
+# The monitoring namespace is shared infrastructure, not the byproduct of one
+# chart. Grafana lives here now; a metrics stack would join it later. Declared
+# here rather than left to CreateNamespace so it stays under Argo CD's control.
+#
+# The credentials Grafana needs are sealed into this namespace alongside this
+# file: grafana-admin and grafana-postgres-ro. A SealedSecret is bound to the
+# namespace it was sealed for, which is why the honeypot database password is
+# sealed a second time here even though the same password already has a copy
+# in honeypot-analytics.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring

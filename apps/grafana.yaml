@@ -1,0 +1,138 @@
+# Grafana on its own, without a metrics stack behind it. The only thing it
+# reads today is the Cowrie session data in Postgres, and that is SQL, not
+# time series, so there is nothing for Prometheus to do yet. If a metrics
+# stack arrives later it should install with grafana.enabled: false and point
+# at this release rather than bringing a second Grafana.
+#
+# Two secrets have to exist in the monitoring namespace before this starts:
+# grafana-admin and grafana-postgres-ro. Both are sealed under
+# manifests/monitoring and belong to the monitoring Application, so that one
+# has to have synced first or the pod sits in CreateContainerConfigError.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: grafana
+    targetRevision: "10.5.15"
+    helm:
+      values: |
+        persistence:
+          enabled: true
+          # Grafana keeps its own sqlite database here: users, preferences,
+          # and any dashboard built in the UI that has not been exported to
+          # git yet. Small, but losing it mid-design is annoying.
+          size: 2Gi
+          # Spelled out on purpose. Both local-path and longhorn carry the
+          # default annotation on this cluster, so leaving it off picks
+          # whichever one the API server decides it likes.
+          storageClassName: longhorn
+
+        admin:
+          existingSecret: grafana-admin
+          userKey: admin-user
+          passwordKey: admin-password
+
+        # The datasource provisioning file below expands $PG_RO_PASSWORD, so
+        # the password reaches Grafana as an environment variable and never
+        # appears in this repository.
+        envValueFrom:
+          PG_RO_PASSWORD:
+            secretKeyRef:
+              name: grafana-postgres-ro
+              key: PGPASSWORD
+
+        datasources:
+          datasources.yaml:
+            apiVersion: 1
+            datasources:
+              - name: honeypot
+                uid: honeypot-postgres
+                type: postgres
+                # Across namespaces, which needs no configuration: service DNS
+                # resolves cluster wide and there are no NetworkPolicies here.
+                url: honeypot-postgres.honeypot-analytics.svc.cluster.local:5432
+                # Reads only. The publish job is the only writer and it
+                # connects as its own user from honeypot-analytics.
+                user: grafana_ro
+                jsonData:
+                  database: cowrie
+                  # Plain TCP inside the cluster. The database has no
+                  # certificate and nothing outside the cluster can reach it.
+                  sslmode: disable
+                secureJsonData:
+                  password: $PG_RO_PASSWORD
+                isDefault: true
+                # Provisioned from git, so editing it in the UI would only
+                # produce a change that the next sync throws away.
+                editable: false
+
+        sidecar:
+          dashboards:
+            enabled: true
+            label: grafana_dashboard
+            # Every namespace, so a service can ship its own dashboard next to
+            # the rest of its manifests instead of everything piling up here.
+            # The chart's ClusterRole already covers the reads.
+            searchNamespace: ALL
+            provider:
+              # The workflow is to build a dashboard in the UI, export the
+              # JSON and commit it as a labelled ConfigMap. Leaving this off
+              # would make the committed copy read-only and break the second
+              # round of that loop.
+              allowUiUpdates: true
+
+        grafana.ini:
+          server:
+            root_url: https://grafana.tail078c12.ts.net
+          analytics:
+            reporting_enabled: false
+            check_for_updates: false
+
+        service:
+          type: ClusterIP
+
+        # Recreate, not the chart's default RollingUpdate. With one replica a
+        # rolling update brings the new pod up before retiring the old one, and
+        # the two cannot hold the same Longhorn RWO volume unless they happen
+        # to land on the same node. On three nodes that deadlocks: the new pod
+        # waits for a volume the old pod will not release until the new one is
+        # Ready. A few seconds of downtime on an upgrade is the better trade.
+        deploymentStrategy:
+          type: Recreate
+
+        # The chart ships a test Pod behind a helm.sh/hook: test annotation.
+        # Helm only runs it on `helm test`, but Argo CD is the one rendering
+        # this and its handling of that particular hook is not worth finding
+        # out from a stray Pod in the namespace.
+        testFramework:
+          enabled: false
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            # No CPU limit, matching the other charts here.
+            memory: 512Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # The monitoring Application declares this Namespace and owns it. This is
+      # only here so the order the two sync in stops mattering: whichever lands
+      # first creates it, and the declared one is applied over it afterwards.
+      # Without it a first sync that beats monitoring fails outright, because
+      # there is nowhere to put the Deployment.
+      - CreateNamespace=true
+      - ServerSideApply=true

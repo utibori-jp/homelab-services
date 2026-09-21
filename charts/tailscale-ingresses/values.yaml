@@ -42,3 +42,10 @@ ingresses:
     service:
       name: argo-workflows-server
       port: 2746
+
+  grafana:
+    hostname: grafana
+    namespace: monitoring
+    service:
+      name: grafana
+      port: 80
