@@ -1,0 +1,25 @@
+# Where the Cowrie session data lands so Grafana can query it with SQL. The
+# namespace and the password come from the honeypot-analytics Application, so
+# CreateNamespace is off.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: honeypot-postgres
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/utibori-jp/homelab-services.git
+    path: charts/honeypot-postgres
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: honeypot-analytics
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

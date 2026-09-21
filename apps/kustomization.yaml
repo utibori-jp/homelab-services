@@ -14,3 +14,4 @@ resources:
   - honeypot-analytics.yaml
   - honeypot-jupyter.yaml
   - honeypot-pipeline.yaml
+  - honeypot-postgres.yaml

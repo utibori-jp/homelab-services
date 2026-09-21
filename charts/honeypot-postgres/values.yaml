@@ -1,0 +1,43 @@
+# The official image rather than a packaged chart. Bitnami moved versioned
+# images to an unmaintained legacy registry in 2025 and left only a floating
+# latest tag on the free tier, which is not something to point a database at.
+# An operator would bring failover and backups, and this database needs
+# neither: every row is derived from the silver parquet on the data PVC and
+# can be rebuilt by re-running publish.
+image: postgres:18.6-alpine
+
+# One writer, no replicas. Losing this costs a re-run, not data.
+replicas: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    # No CPU limit, matching the other charts here: throttling a database is
+    # worse than letting it burst on a quiet node.
+    memory: 1Gi
+
+persistence:
+  storageClass: longhorn
+  # A week is roughly 20k sessions, 15k commands. Longhorn keeps two replicas
+  # of whatever is asked for and the nodes are not large, so this starts small.
+  # Growing it is not a matter of raising this number: volumeClaimTemplates is
+  # immutable, so the PVC gets expanded by hand (Longhorn does it online) and
+  # this value is brought back in line afterwards.
+  size: 2Gi
+  accessMode: ReadWriteOnce
+
+postgres:
+  database: cowrie
+  user: cowrie
+  # Holds POSTGRES_PASSWORD. Sealed in manifests/honeypot-analytics next to
+  # b2-credentials, so it belongs to the honeypot-analytics Application rather
+  # than this chart. That Application has to have synced first: there is no
+  # fallback, the pod sits in CreateContainerConfigError until the Secret
+  # exists.
+  secretName: honeypot-postgres-auth
+  passwordKey: POSTGRES_PASSWORD
+
+service:
+  port: 5432

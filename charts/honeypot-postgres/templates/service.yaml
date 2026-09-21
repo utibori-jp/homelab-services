@@ -1,0 +1,28 @@
+# What clients connect to: the publish job and, later, Grafana.
+apiVersion: v1
+kind: Service
+metadata:
+  name: honeypot-postgres
+  namespace: honeypot-analytics
+spec:
+  selector:
+    app: honeypot-postgres
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 5432
+
+---
+# The StatefulSet's governing service. Nothing connects here; it exists because
+# a StatefulSet needs one to give its pod a stable name.
+apiVersion: v1
+kind: Service
+metadata:
+  name: honeypot-postgres-headless
+  namespace: honeypot-analytics
+spec:
+  clusterIP: None
+  selector:
+    app: honeypot-postgres
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 5432
