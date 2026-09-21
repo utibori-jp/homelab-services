@@ -76,14 +76,18 @@ spec:
             periodSeconds: 30
           # Fast shutdown: refuse new connections, abort what is in flight,
           # flush to disk. What the image's STOPSIGNAL would have asked for if
-          # Kubernetes read it.
+          # Kubernetes read it. -W rather than -w because pg_ctl would be waiting
+          # on a postmaster that is PID 1: the moment it exits the container goes
+          # with it, taking the hook along and logging a FailedPreStopHook every
+          # time. Not waiting is safe, the SIGTERM kubelet sends next is ignored
+          # once a fast shutdown is already underway.
           lifecycle:
             preStop:
               exec:
                 command:
                   - /bin/sh
                   - -c
-                  - pg_ctl -D "$PGDATA" -m fast -w stop
+                  - pg_ctl -D "$PGDATA" -m fast -W stop
   volumeClaimTemplates:
     - metadata:
         name: data
