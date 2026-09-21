@@ -6,6 +6,13 @@ kind: Application
 metadata:
   name: honeypot-postgres
   namespace: argocd
+  annotations:
+    # The API server fills in apiVersion, kind, volumeMode and status inside
+    # spec.volumeClaimTemplates, and the default 3-way diff reads those as a
+    # difference no sync can resolve, so the Application sits OutOfSync forever
+    # while selfHeal keeps reapplying it. ServerSideDiff compares against a
+    # server-side apply dry run instead, the same comparison kubectl diff makes.
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
