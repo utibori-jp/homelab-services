@@ -1,5 +1,9 @@
-# Bronze to silver, once a day. One step for now; clustering and survival
-# analysis become further templates in this DAG once their scripts settle.
+# Bronze to silver to postgres, once a day. Two steps in sequence: publish
+# reads the parquet normalize just wrote, so a failed normalize stops the run
+# rather than handing publish a day that is not there.
+#
+# The name stays honeypot-normalize because renaming a CronWorkflow under Argo
+# CD means deleting and recreating it, which is not worth the accuracy.
 apiVersion: argoproj.io/v1alpha1
 kind: CronWorkflow
 metadata:
@@ -20,7 +24,7 @@ spec:
         - name: date
           value: ""
     serviceAccountName: argo-workflow
-    entrypoint: normalize
+    entrypoint: daily
     # Longhorn hands the volume over owned by root. 1000:100 is what the
     # image and the Jupyter pod both run as.
     securityContext:
@@ -32,6 +36,13 @@ spec:
         persistentVolumeClaim:
           claimName: {{ .Values.dataPvc }}
     templates:
+      - name: daily
+        steps:
+          - - name: normalize
+              template: normalize
+          - - name: publish
+              template: publish
+
       - name: normalize
         container:
           image: {{ .Values.image }}
@@ -58,6 +69,42 @@ spec:
         retryStrategy:
           # B2 being briefly unreachable is the failure worth retrying. A bad
           # day's data would fail all three times and stay failed.
+          limit: "2"
+          retryPolicy: OnError
+          backoff:
+            duration: "1m"
+            factor: "2"
+
+      - name: publish
+        container:
+          image: {{ .Values.image }}
+          args: ["publish", "--date", "{{`{{workflow.parameters.date}}`}}"]
+          env:
+            - name: HONEYPOT_DATA_DIR
+              value: /data
+            # Spelled out as libpq variables rather than one connection
+            # string, so the only part that has to be sealed is the password.
+            - name: PGHOST
+              value: {{ .Values.postgres.host | quote }}
+            - name: PGPORT
+              value: {{ .Values.postgres.port | quote }}
+            - name: PGUSER
+              value: {{ .Values.postgres.user | quote }}
+            - name: PGDATABASE
+              value: {{ .Values.postgres.database | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secretName }}
+                  key: {{ .Values.postgres.passwordKey }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+        retryStrategy:
+          # Postgres restarting under it is the failure worth retrying. A day
+          # with no silver raises instead, and no retry will conjure one.
           limit: "2"
           retryPolicy: OnError
           backoff:
