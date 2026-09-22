@@ -52,11 +52,21 @@ spec:
             # which fsGroup would otherwise loosen.
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
+            # Read by the initdb.d script below, on the same first boot and
+            # with the same caveat: changing it afterwards takes an ALTER ROLE.
+            - name: GRAFANA_RO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.grafanaRo.secretName }}
+                  key: {{ .Values.grafanaRo.passwordKey }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
           # initdb on a first boot, WAL replay after an unclean stop. Two
           # minutes for either, and the liveness probe only starts counting once
           # this one has passed, so a slow recovery does not get killed halfway
@@ -88,6 +98,14 @@ spec:
                   - /bin/sh
                   - -c
                   - pg_ctl -D "$PGDATA" -m fast -W stop
+      volumes:
+        # 0755 because the entrypoint runs the files in this directory that are
+        # executable and sources the ones that are not. Sourcing would work too,
+        # but a `set -e` in a sourced file applies to the entrypoint itself.
+        - name: initdb
+          configMap:
+            name: honeypot-postgres-initdb
+            defaultMode: 0755
   volumeClaimTemplates:
     - metadata:
         name: data

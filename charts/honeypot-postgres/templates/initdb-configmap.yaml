@@ -1,0 +1,35 @@
+# Runs on the first boot of an empty PGDATA and never again. The postgres
+# entrypoint executes everything in /docker-entrypoint-initdb.d once initdb has
+# finished, against a temporary server that is not listening on the network
+# yet, so nothing can connect while the role is half created.
+#
+# A .sh rather than a .sql because the entrypoint hands .sql files to psql
+# unchanged and there is no way to get the password in from the environment.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: honeypot-postgres-initdb
+  namespace: honeypot-analytics
+data:
+  10-grafana-ro.sh: |
+    #!/bin/sh
+    set -e
+
+    # The heredoc is quoted, so :'pw' and :"role" are substituted by psql and
+    # not by the shell. psql quotes what it substitutes, which is what keeps a
+    # password containing a quote from ending the statement early.
+    psql -v ON_ERROR_STOP=1 \
+         -v role={{ .Values.grafanaRo.role | quote }} \
+         -v pw="$GRAFANA_RO_PASSWORD" \
+         --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<'EOSQL'
+    CREATE ROLE :"role" LOGIN PASSWORD :'pw';
+    GRANT USAGE ON SCHEMA public TO :"role";
+
+    -- No GRANT SELECT ON ALL TABLES here: initdb has just run and the schema
+    -- is empty. The pipeline's init-db creates the tables later, as the same
+    -- role this script runs as, and the default privilege below is what puts
+    -- SELECT on them when it does. publish only deletes and inserts rows, so
+    -- the grant survives every run after that.
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public
+      GRANT SELECT ON TABLES TO :"role";
+    EOSQL

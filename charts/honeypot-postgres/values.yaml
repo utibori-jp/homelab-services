@@ -41,3 +41,16 @@ postgres:
 
 service:
   port: 5432
+
+# The read-only role Grafana queries the session grain as. Created by the
+# initdb.d script, which means it exists only in a database initialized after
+# this chart grew that script. Renaming it here later does not rename the role
+# in a database that is already running.
+grafanaRo:
+  role: grafana_ro
+  # Holds PGPASSWORD for the role above. Sealed in manifests/honeypot-analytics
+  # alongside the cowrie password, so it belongs to the honeypot-analytics
+  # Application rather than this chart, and has to have synced before a first
+  # boot or the pod sits in CreateContainerConfigError.
+  secretName: grafana-postgres-ro
+  passwordKey: PGPASSWORD
