@@ -1,6 +1,6 @@
 # Built from the analytics directory of the cowrie-honeypot repository.
 # Bump the tag here after tagging analytics-vX.Y.Z over there.
-image: ghcr.io/utibori-jp/honeypot-analytics:v0.2.0
+image: ghcr.io/utibori-jp/honeypot-analytics:v0.3.0
 
 normalize:
   # The droplet rotates a day's log at its own local midnight and the hourly
@@ -13,6 +13,16 @@ normalize:
 # Writes silver and gold. The same claim Jupyter has mounted, which is why it
 # is ReadWriteMany.
 dataPvc: honeypot-data
+
+# Where publish writes. The same database the honeypot-postgres chart creates,
+# reached across nothing since both live in this namespace.
+postgres:
+  host: honeypot-postgres.honeypot-analytics.svc.cluster.local
+  port: 5432
+  user: cowrie
+  database: cowrie
+  secretName: honeypot-postgres-auth
+  passwordKey: POSTGRES_PASSWORD
 
 b2:
   secretName: b2-credentials
