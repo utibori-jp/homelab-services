@@ -31,6 +31,10 @@ persistence:
 postgres:
   database: cowrie
   user: cowrie
+  # The short name resolves because the init-db hook runs in this namespace.
+  # The publish job reaches the same service by its fully qualified name from
+  # its own chart.
+  host: honeypot-postgres
   # Holds POSTGRES_PASSWORD. Sealed in manifests/honeypot-analytics next to
   # b2-credentials, so it belongs to the honeypot-analytics Application rather
   # than this chart. That Application has to have synced first: there is no
@@ -41,6 +45,16 @@ postgres:
 
 service:
   port: 5432
+
+# The PostSync hook that creates the tables. Runs the analytics image because
+# the schema is defined there, next to the publish step that fills it.
+#
+# This is a third place the analytics tag has to be raised, after
+# charts/honeypot-jupyter and charts/honeypot-pipeline. Leaving it behind means
+# a rebuilt database gets the schema an older publish expected, which surfaces
+# as the next publish failing rather than as anything subtle.
+initDb:
+  image: ghcr.io/utibori-jp/honeypot-analytics:v0.3.0
 
 # The read-only role Grafana queries the session grain as. Created by the
 # initdb.d script, which means it exists only in a database initialized after

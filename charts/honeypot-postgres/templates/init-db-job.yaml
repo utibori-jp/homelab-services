@@ -1,0 +1,58 @@
+# Creates the tables publish writes into, after this chart syncs.
+#
+# The role this database hands to Grafana is made by the initdb script, which
+# only runs on a volume that has never been initialised. The tables cannot live
+# there too: their definition changes whenever the publish step changes, and an
+# initdb script would never reach a database that already exists. So they come
+# from the analytics image, which is where that definition lives, run as a hook.
+#
+# Deliberately not a step in the daily CronWorkflow. Running CREATE TABLE IF NOT
+# EXISTS every night would quietly paper over this hook being broken, and the
+# first sign of trouble would be a dashboard going empty months later. Failing
+# the publish step instead is the louder and more useful outcome.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: honeypot-postgres-init-db
+  namespace: honeypot-analytics
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    # Cleared when the next one starts rather than on success, so the last run
+    # is still there to read when something did go wrong.
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  # Postgres reports healthy a moment before it takes connections on a cold
+  # start, and this hook is most needed exactly then.
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: init-db
+          image: {{ .Values.initDb.image }}
+          args: ["init-db"]
+          env:
+            # Not /data. The image defaults there and the job has no volume;
+            # DuckDB only needs somewhere to keep the postgres extension it
+            # downloads, and /tmp outlives the one statement it runs.
+            - name: HONEYPOT_DATA_DIR
+              value: /tmp
+            - name: PGHOST
+              value: {{ .Values.postgres.host | quote }}
+            - name: PGPORT
+              value: {{ .Values.service.port | quote }}
+            - name: PGUSER
+              value: {{ .Values.postgres.user | quote }}
+            - name: PGDATABASE
+              value: {{ .Values.postgres.database | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secretName }}
+                  key: {{ .Values.postgres.passwordKey }}
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
