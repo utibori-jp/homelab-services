@@ -10,6 +10,12 @@
 # EXISTS every night would quietly paper over this hook being broken, and the
 # first sign of trouble would be a dashboard going empty months later. Failing
 # the publish step instead is the louder and more useful outcome.
+#
+# Worth knowing: a hook runs during a sync, and losing the volume is not a sync.
+# The PVC comes from volumeClaimTemplates, which is not in git, so Argo CD sees
+# nothing to reconcile and this never fires on its own. After rebuilding the
+# volume, sync this Application by hand and the tables come back. Deleting a PVC
+# is a deliberate act anyway; this is one more step in the same procedure.
 apiVersion: batch/v1
 kind: Job
 metadata:

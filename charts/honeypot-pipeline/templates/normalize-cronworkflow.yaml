@@ -1,6 +1,7 @@
-# Bronze to silver to postgres, once a day. Two steps in sequence: publish
-# reads the parquet normalize just wrote, so a failed normalize stops the run
-# rather than handing publish a day that is not there.
+# Bronze to silver to postgres to Discord, once a day. Three steps in sequence,
+# each reading what the one before it wrote, so a failure stops the rest rather
+# than handing them a day that is not there. A report about a day that never
+# loaded would be worse than no report.
 #
 # The name stays honeypot-normalize because renaming a CronWorkflow under Argo
 # CD means deleting and recreating it, which is not worth the accuracy.
@@ -42,6 +43,8 @@ spec:
               template: normalize
           - - name: publish
               template: publish
+          - - name: report
+              template: report
 
       - name: normalize
         container:
@@ -105,6 +108,56 @@ spec:
         retryStrategy:
           # Postgres restarting under it is the failure worth retrying. A day
           # with no silver raises instead, and no retry will conjure one.
+          limit: "2"
+          retryPolicy: OnError
+          backoff:
+            duration: "1m"
+            factor: "2"
+
+      - name: report
+        container:
+          image: {{ .Values.image }}
+          args: ["report", "--date", "{{`{{workflow.parameters.date}}`}}"]
+          envFrom:
+            # The B2 keys, which the report only needs to size the bucket. The
+            # webhook it posts to comes from its own secret below.
+            - secretRef:
+                name: {{ .Values.b2.secretName }}
+          env:
+            - name: HONEYPOT_DATA_DIR
+              value: /data
+            - name: HONEYPOT_B2_PREFIX
+              value: {{ .Values.b2.prefix | quote }}
+            - name: HONEYPOT_B2_ENDPOINT
+              value: {{ .Values.b2.endpoint | quote }}
+            - name: HONEYPOT_B2_REGION
+              value: {{ .Values.b2.region | quote }}
+            - name: PGHOST
+              value: {{ .Values.postgres.host | quote }}
+            - name: PGPORT
+              value: {{ .Values.postgres.port | quote }}
+            - name: PGUSER
+              value: {{ .Values.postgres.user | quote }}
+            - name: PGDATABASE
+              value: {{ .Values.postgres.database | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secretName }}
+                  key: {{ .Values.postgres.passwordKey }}
+            - name: DISCORD_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.discord.secretName }}
+                  key: {{ .Values.discord.urlKey }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+        retryStrategy:
+          # Discord being briefly unavailable is worth another go. A report
+          # posted twice is noise; a day with none is a gap nobody notices.
           limit: "2"
           retryPolicy: OnError
           backoff:

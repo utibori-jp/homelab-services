@@ -1,7 +1,7 @@
 # The same image the pipeline jobs run. That is the point: code worked out in
 # a notebook moves into the package and runs unchanged as a job, with no
 # second copy of the B2 wiring to keep in step.
-image: ghcr.io/utibori-jp/honeypot-analytics:v0.3.0
+image: ghcr.io/utibori-jp/honeypot-analytics:v0.4.0
 
 replicas: 1
 

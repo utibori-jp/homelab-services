@@ -1,6 +1,6 @@
 # Built from the analytics directory of the cowrie-honeypot repository.
 # Bump the tag here after tagging analytics-vX.Y.Z over there.
-image: ghcr.io/utibori-jp/honeypot-analytics:v0.3.0
+image: ghcr.io/utibori-jp/honeypot-analytics:v0.4.0
 
 normalize:
   # The droplet rotates a day's log at its own local midnight and the hourly
@@ -23,6 +23,12 @@ postgres:
   database: cowrie
   secretName: honeypot-postgres-auth
   passwordKey: POSTGRES_PASSWORD
+
+# Where the daily report is posted. Sealed in manifests/honeypot-analytics with
+# the rest, so that Application has to have synced first.
+discord:
+  secretName: honeypot-discord
+  urlKey: DISCORD_WEBHOOK_URL
 
 b2:
   secretName: b2-credentials
