@@ -54,7 +54,7 @@ service:
 # a rebuilt database gets the schema an older publish expected, which surfaces
 # as the next publish failing rather than as anything subtle.
 initDb:
-  image: ghcr.io/utibori-jp/honeypot-analytics:v0.4.0
+  image: ghcr.io/utibori-jp/honeypot-analytics:v0.4.1
 
 # The read-only role Grafana queries the session grain as. Created by the
 # initdb.d script, which means it exists only in a database initialized after
