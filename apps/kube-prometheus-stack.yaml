@@ -133,6 +133,21 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
+  # The chart renders the admission webhooks with no caBundle and lets its
+  # certgen hook Job patch one in after install. Git never has that value, so
+  # without this the Application sits OutOfSync and selfHeal keeps wiping the
+  # CA the Job just wrote.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: kube-prometheus-stack-admission
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kube-prometheus-stack-admission
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
   syncPolicy:
     automated:
       prune: true
@@ -142,3 +157,6 @@ spec:
       # The operator CRDs are too big for the last-applied annotation that
       # client-side apply writes.
       - ServerSideApply=true
+      # ignoreDifferences on its own only hides the diff. This makes the sync
+      # leave those fields alone too.
+      - RespectIgnoreDifferences=true
