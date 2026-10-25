@@ -1,8 +1,7 @@
-# Grafana on its own, without a metrics stack behind it. The only thing it
-# reads today is the Cowrie session data in Postgres, and that is SQL, not
-# time series, so there is nothing for Prometheus to do yet. If a metrics
-# stack arrives later it should install with grafana.enabled: false and point
-# at this release rather than bringing a second Grafana.
+# Grafana on its own. It reads the Cowrie session data in Postgres and the
+# cluster metrics from kube-prometheus-stack, which installs with
+# grafana.enabled: false and ships its dashboards to this release's sidecar
+# rather than bringing a second Grafana.
 #
 # Two secrets have to exist in the monitoring namespace before this starts:
 # grafana-admin and grafana-postgres-ro. Both are sealed under
@@ -71,6 +70,12 @@ spec:
                 isDefault: true
                 # Provisioned from git, so editing it in the UI would only
                 # produce a change that the next sync throws away.
+                editable: false
+              - name: prometheus
+                uid: prometheus
+                type: prometheus
+                # The Service kube-prometheus-stack creates in this namespace.
+                url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
                 editable: false
 
         sidecar:

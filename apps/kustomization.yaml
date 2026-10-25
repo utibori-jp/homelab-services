@@ -17,3 +17,4 @@ resources:
   - honeypot-postgres.yaml
   - monitoring.yaml
   - grafana.yaml
+  - kube-prometheus-stack.yaml

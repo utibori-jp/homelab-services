@@ -1,0 +1,145 @@
+# Prometheus, the operator, node-exporter and kube-state-metrics, with the
+# upstream recording rules and dashboards. No Grafana and no Alertmanager:
+# dashboards go out as ConfigMaps that the existing Grafana's sidecar picks up,
+# and the Prometheus datasource is provisioned in apps/grafana.yaml.
+#
+# k3s runs the apiserver, controller-manager, scheduler, kubelet and kube-proxy
+# in one process that shares a single metrics registry, so every one of those
+# endpoints returns the same pile of series. Scraping each of them would store
+# everything several times. Only the apiserver and the kubelet (which also
+# carries cAdvisor) are scraped here. The controller-manager, scheduler and
+# proxy dashboards and rules are pointed at job="kubelet", where their series
+# land.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: "92.3.0"
+    helm:
+      values: |
+        grafana:
+          enabled: false
+          # Without these two the dashboards disappear along with Grafana.
+          # They carry grafana_dashboard: "1", which the sidecar in
+          # apps/grafana.yaml already watches for across namespaces.
+          forceDeployDashboards: true
+          defaultDashboardsEnabled: true
+
+        alertmanager:
+          enabled: false
+
+        kubeApiServer:
+          enabled: true
+
+        kubelet:
+          enabled: true
+          # The operator maintains a Service listing every node's kubelet.
+          # Its default home is kube-system, which this repo does not write
+          # to, so it lives next to Prometheus instead. The endpoints are
+          # node IPs either way.
+          namespace: monitoring
+
+        # Left enabled so their dashboards and rules render, but with no
+        # Service or ServiceMonitor of their own. On k3s they also bind to
+        # localhost, so a separate scrape would fail anyway.
+        kubeControllerManager:
+          enabled: true
+          jobNameOverride: kubelet
+          service:
+            enabled: false
+          serviceMonitor:
+            enabled: false
+        kubeScheduler:
+          enabled: true
+          jobNameOverride: kubelet
+          service:
+            enabled: false
+          serviceMonitor:
+            enabled: false
+        kubeProxy:
+          enabled: true
+          jobNameOverride: kubelet
+          service:
+            enabled: false
+          serviceMonitor:
+            enabled: false
+
+        # With the sqlite datastore there is no etcd to scrape. With embedded
+        # etcd the server needs --etcd-expose-metrics first, which is node
+        # config and not something this repo can turn on.
+        kubeEtcd:
+          enabled: false
+
+        # The chart would add its own Service in kube-system to reach CoreDNS.
+        # Off until there is a way to do that without writing to kube-system.
+        coreDns:
+          enabled: false
+
+        defaultRules:
+          rules:
+            alertmanager: false
+            etcd: false
+            windows: false
+
+        prometheusOperator:
+          kubeletService:
+            namespace: monitoring
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+
+        prometheus:
+          prometheusSpec:
+            # Pick up ServiceMonitors, PodMonitors and rules from any app,
+            # not only the ones carrying this release's label.
+            ruleSelectorNilUsesHelmValues: false
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            probeSelectorNilUsesHelmValues: false
+            scrapeConfigSelectorNilUsesHelmValues: false
+
+            retention: 15d
+            # Below the PVC size, so Prometheus drops old blocks before the
+            # volume fills up.
+            retentionSize: 8GB
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  # Spelled out for the same reason as in apps/grafana.yaml:
+                  # two StorageClasses claim to be the default.
+                  storageClassName: longhorn
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 10Gi
+
+            resources:
+              requests:
+                cpu: 200m
+                memory: 1Gi
+              limits:
+                # No CPU limit, matching the other charts here.
+                memory: 2Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The operator CRDs are too big for the last-applied annotation that
+      # client-side apply writes.
+      - ServerSideApply=true
