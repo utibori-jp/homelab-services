@@ -72,8 +72,7 @@ spec:
           serviceMonitor:
             enabled: false
 
-        # Single server on the sqlite datastore, so there is no etcd to
-        # scrape. db/etcd exists on home-lab-1 but has never held a member.
+        # Single server on the sqlite datastore, so there is no etcd to scrape.
         kubeEtcd:
           enabled: false
 
