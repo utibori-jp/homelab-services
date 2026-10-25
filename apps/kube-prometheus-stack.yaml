@@ -72,9 +72,8 @@ spec:
           serviceMonitor:
             enabled: false
 
-        # With the sqlite datastore there is no etcd to scrape. With embedded
-        # etcd the server needs --etcd-expose-metrics first, which is node
-        # config and not something this repo can turn on.
+        # Single server on the sqlite datastore, so there is no etcd to
+        # scrape. db/etcd exists on home-lab-1 but has never held a member.
         kubeEtcd:
           enabled: false
 
